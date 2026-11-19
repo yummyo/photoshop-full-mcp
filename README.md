@@ -14,6 +14,10 @@
 
 Photoshop Full MCP v2 is a local, capability-gated MCP server for Photoshop. It targets the installed Photoshop 2026 (27.9) while avoiding version and install-path assumptions.
 
+This checkout adds the local, read-only `photoshop_document_inspect` extension for layer hierarchy, bounds and text styles. See its [contract](docs/DOCUMENT_INSPECTION.md), [live validation report](docs/LIVE_VALIDATION_2026-11-17.md), and [high-fidelity reconstruction TODO](TODO.md). The extension passed core read-only inspection on Photoshop 27.0.0 / UXP 9.0.2 with explicitly documented field and font limitations. It is not included in the upstream release ZIP described below.
+
+The local P2 candidate adds [`photoshop_design_export`](docs/DESIGN_EXPORT.md): a new-file-only bundle of design metadata, reference PNG, selected asset PNGs, font audit, [normalized styles and unverified CSS hints](docs/WEB_STYLES.md), and a hashed manifest. Its opt-in [isolated composite mode](docs/ISOLATED_RENDER.md) renders an owned temporary duplicate, restores the original state and verifies the asset rectangle on its current backdrop. Build and 42 focused tests pass; real PSD exports, style interpretation and compositing remain unverified. This source revision is staged separately; runtime/panel loading and live evidence must be verified for the matching build. Missing fonts are deferred for the current development stage.
+
 ## Quick Start for Windows
 
 Prerequisites: Windows 10/11, Photoshop 24 or later, [Node.js 20.19 or later](https://nodejs.org/), and Codex Desktop or the Codex CLI. Photoshop 2026 (27.9) is the reference host.

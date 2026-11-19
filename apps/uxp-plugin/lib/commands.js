@@ -6,6 +6,8 @@ const { PluginError } = require("./errors");
 const targets = require("./targets");
 const evidenceImaging = require("./imaging");
 const verification = require("./verification");
+const { sha256Hex } = require("./crypto-compat");
+const inspection = require("./inspection");
 const {
   getExportFolder,
   resolvePersistentEntry,
@@ -454,7 +456,8 @@ async function hostDescribe() {
     uxp: uxpVersions,
     apiVersion: 2,
     pluginVersion: "2.0.1",
-    protocol: "ps-mcp-bridge/3",
+    protocol: "ps-mcp-bridge/4",
+    designExport: { schemaVersion: "photoshop.design-assets/1", pixelModes: ["layer_pixels", "isolated_composite"], isolatedComposite: { implementation: "isolated-composite/1", status: "implemented_unverified", originalDocumentReadOnly: true, usesTemporaryDocument: true } },
     executeAsModal: typeof core.executeAsModal === "function",
     runtimeProbes: {
       app: {
@@ -1019,7 +1022,7 @@ async function resolveOutputEntry(args, extension) {
   if (existing && policy === "overwrite") {
     if (args.expected_existing_sha256) {
       const bytes = await readEntryBinary(existing);
-      const actual = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+      const actual = sha256Hex(bytes);
       if (actual !== args.expected_existing_sha256) throw new PluginError("OUTPUT_CONFLICT", "Existing output differs from expected SHA-256");
     }
     return existing;
@@ -1996,6 +1999,8 @@ async function dispatch(kind, payload, context) {
   switch (kind) {
     case "host.describe": return hostDescribe();
     case "state.get": return stateGet(payload);
+    case "document.inspect": return inspection.inspect(payload);
+    case "design.pixels": return require("./design-pixels").capture(payload, context);
     case "target.capture": return targets.captureTarget(context && context.serverId);
     case "target.inspect": return inModal("target.inspect", async () => verification.projection(payload.target), false, context, payload.target);
     // Photoshop 25+ requires imaging.getPixels/encodeImageData to run inside

@@ -59,7 +59,7 @@ async function readJson(req: IncomingMessage, maxBytes = 2 * 1024 * 1024): Promi
 }
 
 export interface BridgeStatus {
-  protocol: "ps-mcp-bridge/3";
+  protocol: "ps-mcp-bridge/4";
   serverId: string;
   port?: number;
   paired: boolean;
@@ -162,7 +162,7 @@ export class BridgeServer {
     this.refreshPairingCode();
     const connected = typeof this.lastSeenAt === "number" && Date.now() - this.lastSeenAt < 60_000;
     return {
-      protocol: "ps-mcp-bridge/3",
+      protocol: "ps-mcp-bridge/4",
       serverId: this.config.serverId,
       ...(this.port !== undefined ? { port: this.port } : {}),
       paired: this.paired,

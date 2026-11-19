@@ -14,7 +14,7 @@ export function runtimeIdentity(): { runtimeProtocol: typeof RUNTIME_PROTOCOL; v
   const extension = import.meta.url.endsWith(".ts") ? "ts" : "js";
   const hash = createHash("sha256").update(RUNTIME_PROTOCOL).update(version);
   // A same-version installation update must not silently keep an older owner.
-  for (const file of ["runtime-owner", "runtime-journal", "bridge", "server", "adobe-automation-adapter", "automation/service", "automation/registry", "automation/mcp"]) hash.update(readFileSync(new URL(`./${file}.${extension}`, import.meta.url)));
+  for (const file of ["runtime-owner", "runtime-journal", "bridge", "server", "design-export", "design-fonts", "design-styles", "adobe-automation-adapter", "automation/service", "automation/registry", "automation/mcp"]) hash.update(readFileSync(new URL(`./${file}.${extension}`, import.meta.url)));
   for (const file of ["recipe-request.schema.json", "recipe-parameters.schema.json", "operation-results.schema.json"]) hash.update(readFileSync(new URL(`./automation/${file}`, import.meta.url)));
   cached = { runtimeProtocol: RUNTIME_PROTOCOL, version, buildId: hash.digest("hex") }; return cached;
 }

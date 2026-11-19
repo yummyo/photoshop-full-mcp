@@ -3,11 +3,10 @@
 const { imaging, constants } = require("photoshop");
 const { PluginError } = require("./errors");
 const targets = require("./targets");
+const { base64 } = require("./crypto-compat");
 
 function encodeBytes(bytes) {
-  let binary = "";
-  for (let start = 0; start < bytes.length; start += 16384) binary += String.fromCharCode(...bytes.subarray(start, start + 16384));
-  return btoa(binary);
+  return base64(bytes);
 }
 function toBounds(region) { return { left: region.x, top: region.y, right: region.x + region.width, bottom: region.y + region.height }; }
 function finiteRect(region) {

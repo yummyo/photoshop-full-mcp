@@ -8,8 +8,7 @@ function canonical(value) {
   return `{${Object.keys(value).sort().filter((key) => value[key] !== undefined).map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
 }
 async function digest(value) {
-  const bytes = new TextEncoder().encode(canonical(value));
-  return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return require("./crypto-compat").sha256Hex(canonical(value));
 }
 function readField(object, path) {
   if (typeof path !== "string" || !/^(document|layer|data|result|state)(\.[A-Za-z0-9_]+)*$/.test(path)) return undefined;

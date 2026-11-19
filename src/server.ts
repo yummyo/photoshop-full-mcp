@@ -3,6 +3,7 @@ import { Ajv, type ValidateFunction } from "ajv";
 import { digest } from "./automation/canonical.js";
 import { RuntimeClient } from "./runtime-client.js";
 import { encodePng } from "./png.js";
+import { DesignExporter } from "./design-export.js";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -351,6 +352,33 @@ export class PhotoshopFullMcpServer {
       objectSchema({ target: TARGET_SCHEMA }),
       async (args) => this.bridgeTool("state.get", args),
       { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    );
+    this.register(
+      "photoshop_document_inspect",
+      "Read a versioned, paginated layer tree with document-pixel bounds and text styles/ranges. Preserves document, selection and history state; does not select layers, edit, save, or export files. Follow page.nextCursor with the same options to assemble the complete design.",
+      objectSchema({
+        document_id: { type: "integer", minimum: 1 },
+        layer_ids: { type: "array", items: { type: "integer", minimum: 1 }, minItems: 1, maxItems: 1000, uniqueItems: true },
+        include_hidden: { type: "boolean", default: true },
+        include_text: { type: "boolean", default: true },
+        include_text_runs: { type: "boolean", default: true },
+        include_styles: { type: "boolean", default: false },
+        limit: { type: "integer", minimum: 1, maximum: 500, default: 100 },
+        cursor: { type: "string", pattern: "^[a-f0-9]{64}:[0-9]{1,8}$", maxLength: 73 },
+      }),
+      async (args) => this.bridgeTool("document.inspect", args),
+      { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    );
+    this.register(
+      "photoshop_design_export",
+      "Write a new traceable design bundle: complete tree, raw appearance/text descriptors, styles.json with conservative normalized styles and unverified individual CSS hints, reference PNG and selected asset PNGs. Original PSD remains read-only. Default layer_pixels mode does not certify effects/masks. Optional isolated_composite edits only an owned temporary duplicate, cleans it up, restores document state and checks source-over against the current backdrop inside the asset rectangle; mismatches remain explicitly unverified. Never overwrites files.",
+      objectSchema({ document_id: { type: "integer", minimum: 1 }, layer_ids: { type: "array", items: { type: "integer", minimum: 1 }, maxItems: 32, uniqueItems: true }, include_reference: { type: "boolean", default: true }, include_styles: { type: "boolean", default: true }, max_pixels: { type: "integer", minimum: 1, maximum: 8000000, default: 4000000 }, render_mode: { type: "string", enum: ["layer_pixels", "isolated_composite"], default: "layer_pixels" }, pixel_tolerance: { type: "integer", minimum: 0, maximum: 8, default: 1 } }),
+      async args => result(await new DesignExporter(process.env.PS_MCP_DESIGN_EXPORT_DIR || join(this.config.exportDir, "design"), async (kind, payload) => {
+        const response = await this.dispatchBridge(kind, payload, 120_000);
+        if (!response.ok) throw new PhotoshopMcpError(bridgeErrorCode(response.error?.code), response.error?.message || `${kind} failed`, response.error);
+        return response.data;
+      }).export(args)),
+      { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     );
     this.register(
       "photoshop_preview_get",

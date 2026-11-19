@@ -3,6 +3,7 @@ const { app } = require("photoshop");
 const storage = require("./storage");
 const targets = require("./targets");
 const { PluginError } = require("./errors");
+const { sha256Hex } = require("./crypto-compat");
 const openedEntries = new Map();
 function savedLayerStructure(doc) {
   const root = targets.allLayers(doc); const indexes = new Map(root.map((entry, index) => [entry.layer.id, index]));
@@ -17,7 +18,7 @@ async function materializeAsset(slot, payload, context) {
   const transfer = payload.assetTransfers && payload.assetTransfers[slot];
   if (!transfer || typeof context.downloadImport !== "function") throw new PluginError("PRECONDITION_FAILED", `No authenticated asset in slot ${slot}`);
   const bytes = await context.downloadImport(transfer.name, slot);
-  const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const hash = sha256Hex(bytes);
   if (hash !== transfer.sha256) throw new PluginError("PRECONDITION_FAILED", `Asset bytes changed for slot ${slot}`, { effect: "not_applied" });
   return storage.materializeTemporaryImportFile(transfer.name, bytes);
 }

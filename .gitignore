@@ -11,6 +11,7 @@ apps/uxp-plugin/dist/
 host-describe.json
 validation-args.json
 artifacts/
+outputs/
 .release-staging/
 release-signing-private.*
 *.pfx

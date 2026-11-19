@@ -124,7 +124,7 @@ export async function loadConfig(overrides: Partial<ServerConfig> = {}): Promise
 
 export async function writeEndpointFile(config: ServerConfig, port: number): Promise<void> {
   await writeOwnerOnly(join(config.dataDir, "bridge-endpoint.json"), {
-    protocol: "ps-mcp-bridge/3",
+    protocol: "ps-mcp-bridge/4",
     serverId: config.serverId,
     host: "127.0.0.1",
     port,

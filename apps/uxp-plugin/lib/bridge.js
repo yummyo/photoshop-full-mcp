@@ -3,12 +3,13 @@
 const { getToken, setToken, getServer, setServer, getPluginInstanceId } = require("./storage");
 const { normalizeError, PluginError } = require("./errors");
 const operations = require("./operations");
+const { base64url, hmacSha256Base64url } = require("./crypto-compat");
 
 const FIRST_PORT = 38452;
 const LAST_PORT = 38462;
 const PROTOCOL = "ps-mcp-bridge/4";
 const POLL_TIMEOUT_MS = 25_000;
-const SUPPORTED_KINDS = new Set(["host.describe", "state.get", "preview.get", "command.execute", "advanced.batchplay", "approval.request", "job.resume", "job.cancel", "target.capture", "target.inspect", "automation.capabilities", "automation.execute", "operation.cancel", "operation.receipt", "operation.verify"]);
+const SUPPORTED_KINDS = new Set(["host.describe", "state.get", "document.inspect", "design.pixels", "preview.get", "command.execute", "advanced.batchplay", "approval.request", "job.resume", "job.cancel", "target.capture", "target.inspect", "automation.capabilities", "automation.execute", "operation.cancel", "operation.receipt", "operation.verify"]);
 
 // UXP 9.3 discards IP-literal manifest origins. The Node bridge still binds
 // exclusively to 127.0.0.1; localhost is only the permission-compatible client name.
@@ -27,12 +28,6 @@ async function readJson(response) {
   try { return JSON.parse(text); } catch (_) { throw new Error(`Bridge returned invalid JSON (${response.status})`); }
 }
 
-function base64url(bytes) {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
 function randomChallenge() {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
@@ -40,15 +35,10 @@ function randomChallenge() {
 }
 
 async function discoveryProof(token, protocol, serverId, port, secretGeneration, challenge, ownerGeneration, executionProtocol) {
-  if (!crypto.subtle || typeof crypto.subtle.importKey !== "function") {
-    throw new Error("This UXP runtime cannot authenticate the local bridge; update Photoshop before reconnecting");
-  }
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey("raw", encoder.encode(token), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const fields = [protocol, serverId, String(port), String(secretGeneration), challenge];
   if (protocol === PROTOCOL) fields.push(ownerGeneration, executionProtocol);
   const payload = fields.join("\n");
-  return base64url(new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(payload))));
+  return hmacSha256Base64url(payload, token);
 }
 
 async function probe(port, token) {
@@ -78,8 +68,12 @@ async function discover() {
 }
 
 async function discoverAll(existingToken) {
-  const { servers } = await discoverAllDetailed(existingToken);
+  const { servers, failures } = await discoverAllDetailed(existingToken);
   if (servers.some(server => server.legacy)) throw new PluginError("CAPABILITY_UNAVAILABLE", "An authenticated legacy bridge is still running. Stop the obsolete standalone bridge and update the runtime before native editing can resume.");
+  if (!servers.length && failures.length) {
+    const reasons = Array.from(new Set(failures.map(({ error }) => error && error.message || String(error))));
+    throw new PluginError("HOST_ERROR", `Authenticated bridge discovery failed: ${reasons.slice(0, 3).join("; ")}`);
+  }
   return servers;
 }
 
